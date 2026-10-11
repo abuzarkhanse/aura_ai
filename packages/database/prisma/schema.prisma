@@ -1,0 +1,131 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum MessageRole {
+  SYSTEM
+  USER
+  ASSISTANT
+  TOOL
+}
+
+enum MemoryType {
+  SEMANTIC
+  EPISODIC
+  PROCEDURAL
+  PREFERENCE
+  PROJECT
+}
+
+enum MemoryStatus {
+  ACTIVE
+  ARCHIVED
+  DELETED
+}
+
+enum FeedbackRating {
+  POSITIVE
+  NEGATIVE
+}
+
+model User {
+  id           String         @id @default(uuid())
+  email        String         @unique
+  name         String?
+  passwordHash String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  conversations Conversation[]
+  memories      Memory[]
+  feedback      Feedback[]
+}
+
+model Conversation {
+  id        String    @id @default(uuid())
+  userId    String
+  title     String?
+  summary   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  archivedAt DateTime?
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages Message[]
+}
+
+model Message {
+  id             String      @id @default(uuid())
+  conversationId String
+  role           MessageRole
+  content        String
+  tokenCount     Int?
+  model          String?
+  createdAt      DateTime    @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  memories     Memory[]
+  feedback     Feedback[]
+  modelRuns    ModelRun[]
+}
+
+model Memory {
+  id              String        @id @default(uuid())
+  userId          String
+  sourceMessageId String?
+  type            MemoryType
+  content         String
+  confidence      Float         @default(0.5)
+  importance      Float         @default(0.5)
+  status          MemoryStatus  @default(ACTIVE)
+  expiresAt       DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceMessage Message?   @relation(fields: [sourceMessageId], references: [id], onDelete: SetNull)
+  embedding     MemoryEmbedding?
+}
+
+model MemoryEmbedding {
+  id         String   @id @default(uuid())
+  memoryId   String   @unique
+  embedding  Unsupported("vector")
+  model      String
+  dimensions Int
+  createdAt  DateTime @default(now())
+
+  memory Memory @relation(fields: [memoryId], references: [id], onDelete: Cascade)
+}
+
+model Feedback {
+  id        String         @id @default(uuid())
+  userId    String
+  messageId String
+  rating    FeedbackRating
+  reason    String?
+  comment   String?
+  createdAt DateTime       @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+}
+
+model ModelRun {
+  id               String   @id @default(uuid())
+  messageId        String
+  provider         String
+  model            String
+  promptTokens     Int?
+  completionTokens Int?
+  latencyMs        Int?
+  retrievalCount   Int?
+  createdAt        DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+}
