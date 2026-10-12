@@ -1,0 +1,28 @@
+import { aiGateway } from "../ai/index.js";
+
+app.post("/api/v1/ai/test", async (request) => {
+  const body = request.body as {
+    message?: string;
+  };
+
+  if (!body.message) {
+    return {
+      error: "message is required",
+    };
+  }
+
+  const response = await aiGateway.generate({
+    messages: [
+      {
+        role: "system",
+        content: "You are AURA, a helpful AI assistant.",
+      },
+      {
+        role: "user",
+        content: body.message,
+      },
+    ],
+  });
+
+  return response;
+});
